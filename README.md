@@ -1,4 +1,4 @@
-# 🎥 Video Conference App (Zoom Clone)
+# 🎥 Video Conference App (
 
 A modern, full-featured **Zoom Clone** video conferencing web application built with **Node.js, Express, Socket.IO, and WebRTC (Mesh Architecture)**.
 
