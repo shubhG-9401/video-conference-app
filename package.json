@@ -1,0 +1,27 @@
+{
+  "name": "video-conference-app",
+  "version": "1.0.0",
+  "description": "Full-featured Zoom Clone video conference web application built with WebRTC, Socket.IO, and Express.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "keywords": [
+    "zoom-clone",
+    "webrtc",
+    "socketio",
+    "video-conference",
+    "screen-sharing",
+    "chat",
+    "recording"
+  ],
+  "author": "shubh gupta",
+  "license": "MIT",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "socket.io": "^4.7.5",
+    "uuid": "^9.0.1"
+  }
+}

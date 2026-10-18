@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Video Conference App | Meeting</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+  <div class="meeting-layout" id="meetingLayout">
+    <!-- Top Header Bar -->
+    <header class="meeting-top-bar">
+      <div class="meeting-info-group">
+        <div class="meeting-security-pill" id="btnMeetingInfoPill" title="View Meeting Information & Invite Link">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+          <span>Meeting Info</span>
+        </div>
+
+        <div class="meeting-title">
+          <span id="displayRoomTitle">Video Conference</span>
+          <span class="meeting-timer" id="meetingTimer">00:00</span>
+        </div>
+
+        <div class="recording-indicator" id="recordingIndicator">
+          <div class="rec-dot"></div>
+          <span>REC</span>
+          <span id="recordingTimer">00:00</span>
+        </div>
+      </div>
+
+      <div class="top-bar-actions">
+        <button class="view-toggle-btn" id="btnToggleView" title="Toggle Grid / Speaker View">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect width="7" height="7" x="3" y="3" rx="1"/>
+            <rect width="7" height="7" x="14" y="3" rx="1"/>
+            <rect width="7" height="7" x="14" y="14" rx="1"/>
+            <rect width="7" height="7" x="3" y="14" rx="1"/>
+          </svg>
+          <span id="viewModeLabel">Speaker View</span>
+        </button>
+
+        <button class="view-toggle-btn" id="btnToggleFullscreen" title="Toggle Fullscreen">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="15 3 21 3 21 9"/>
+            <polyline points="9 21 3 21 3 15"/>
+            <line x1="21" x2="14" y1="3" y2="10"/>
+            <line x1="3" x2="10" y1="21" y2="14"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Meeting Main Body -->
+    <main class="meeting-main-content">
+      <!-- Floating animated emojis overlay -->
+      <div class="floating-reactions-layer" id="floatingReactionsLayer"></div>
+
+      <!-- Video Grid Area -->
+      <div class="video-grid-container" id="videoGridContainer">
+        <div class="video-grid" id="videoGrid" data-count="1">
+          <!-- Local User Video Tile -->
+          <div class="video-card local-video" id="localVideoCard">
+            <video id="localVideo" autoplay playsinline muted></video>
+            <div class="avatar-placeholder" id="localAvatarPlaceholder">
+              <div class="avatar-bubble" id="localAvatarLetter">U</div>
+            </div>
+
+            <div class="hand-raised-badge" id="localHandBadge" style="display:none;">✋</div>
+
+            <div class="video-tile-actions">
+              <button class="tile-action-btn" id="btnPinLocal" title="Pin / Spotlight">📌</button>
+              <button class="tile-action-btn" id="btnPipLocal" title="Picture-in-Picture">⧉</button>
+            </div>
+
+            <div class="video-card-footer">
+              <span class="mic-badge" id="localMicBadge">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+                  <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                  <line x1="12" x2="12" y1="19" y2="22"/>
+                </svg>
+              </span>
+              <span id="localUserNameLabel">You</span>
+            </div>
+          </div>
+
+          <!-- Remote video cards will be dynamically injected here -->
+        </div>
+      </div>
+
+      <!-- Participants Sidebar Drawer -->
+      <aside class="side-panel" id="participantsPanel">
+        <div class="side-panel-header">
+          <h3>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+            <span>Participants (<span id="participantPanelCount">1</span>)</span>
+          </h3>
+          <button class="close-btn" id="btnCloseParticipants">&times;</button>
+        </div>
+
+        <div style="padding: 10px 14px; border-bottom: 1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center;">
+          <span style="font-size:0.8rem; color:var(--text-muted);">In Meeting</span>
+          <button id="btnHostMuteAll" class="view-toggle-btn" style="padding:4px 8px; font-size:0.75rem; display:none;">Mute All</button>
+        </div>
+
+        <div class="side-panel-body">
+          <div class="participant-list" id="participantList">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+      </aside>
+
+      <!-- Chat Sidebar Drawer -->
+      <aside class="side-panel" id="chatPanel">
+        <div class="side-panel-header">
+          <h3>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+            <span>In-Meeting Chat</span>
+          </h3>
+          <button class="close-btn" id="btnCloseChat">&times;</button>
+        </div>
+
+        <div class="side-panel-body">
+          <div class="chat-messages-container" id="chatMessages">
+            <div style="text-align:center; padding: 20px 0; color:var(--text-muted); font-size:0.82rem;">
+              Messages sent here are visible to everyone in the meeting.
+            </div>
+          </div>
+        </div>
+
+        <div class="chat-input-bar">
+          <div style="display:flex; align-items:center; justify-content:space-between;">
+            <label style="font-size:0.75rem; color:var(--text-muted);">Send to:</label>
+            <select id="chatRecipientSelect" class="chat-target-select">
+              <option value="everyone">Everyone</option>
+            </select>
+          </div>
+          <form class="chat-form" id="chatForm">
+            <input type="text" id="chatInput" placeholder="Type a message..." autocomplete="off">
+            <button type="submit" class="chat-send-btn" title="Send message">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="22" x2="11" y1="2" y2="13"/>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+              </svg>
+            </button>
+          </form>
+        </div>
+      </aside>
+    </main>
+
+    <!-- Reactions Popup -->
+    <div class="reactions-popup" id="reactionsPopup">
+      <button class="reaction-emoji-btn" data-emoji="👍">👍</button>
+      <button class="reaction-emoji-btn" data-emoji="👏">👏</button>
+      <button class="reaction-emoji-btn" data-emoji="❤️">❤️</button>
+      <button class="reaction-emoji-btn" data-emoji="😂">😂</button>
+      <button class="reaction-emoji-btn" data-emoji="😮">😮</button>
+      <button class="reaction-emoji-btn" data-emoji="🎉">🎉</button>
+      <button class="raise-hand-action-btn" id="btnRaiseHandAction">
+        <span id="raiseHandIcon">✋</span>
+        <span id="raiseHandText">Raise Hand</span>
+      </button>
+    </div>
+
+    <!-- Zoom Signature Bottom Toolbar -->
+    <footer class="meeting-bottom-bar">
+      <!-- Left Controls: Mic & Video -->
+      <div class="toolbar-group">
+        <button class="tool-btn" id="btnToggleAudio" title="Mute / Unmute (Space)">
+          <div class="tool-btn-icon" id="audioIconContainer">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+              <line x1="12" x2="12" y1="19" y2="22"/>
+            </svg>
+          </div>
+          <span class="tool-btn-label" id="audioLabel">Mute</span>
+        </button>
+
+        <button class="tool-btn" id="btnToggleVideo" title="Start / Stop Video">
+          <div class="tool-btn-icon" id="videoIconContainer">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="m22 8-6 4 6 4V8Z"/>
+              <rect width="14" height="12" x="2" y="6" rx="2" ry="2"/>
+            </svg>
+          </div>
+          <span class="tool-btn-label" id="videoLabel">Stop Video</span>
+        </button>
+
+        <button class="tool-btn" id="btnVideoEffects" title="Virtual Background & Visual Filters">
+          <div class="tool-btn-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <path d="M12 2a10 10 0 0 0 0 20Z"/>
+            </svg>
+          </div>
+          <span class="tool-btn-label">Effects</span>
+        </button>
+      </div>
+
+      <!-- Center Controls: Participants, Chat, Share Screen, Record, Reactions -->
+      <div class="toolbar-group">
+        <button class="tool-btn" id="btnToggleParticipants" title="Participants">
+          <div class="tool-btn-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+          </div>
+          <span class="tool-btn-label">Participants</span>
+          <span class="tool-badge" id="badgeParticipantCount">1</span>
+        </button>
+
+        <button class="tool-btn" id="btnToggleChat" title="Chat">
+          <div class="tool-btn-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+          </div>
+          <span class="tool-btn-label">Chat</span>
+          <span class="tool-badge red" id="badgeChatUnread" style="display:none;">0</span>
+        </button>
+
+        <button class="tool-btn" id="btnShareScreen" title="Share your screen">
+          <div class="tool-btn-icon" style="color:#22c55e;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <rect width="18" height="14" x="3" y="3" rx="2"/>
+              <path d="M12 17v4M8 21h8"/>
+              <path d="m9 10 3-3 3 3"/>
+              <path d="M12 7v6"/>
+            </svg>
+          </div>
+          <span class="tool-btn-label" style="color:#22c55e;">Share Screen</span>
+        </button>
+
+        <button class="tool-btn" id="btnRecordMeeting" title="Record this meeting">
+          <div class="tool-btn-icon" id="recordIconWrapper">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <circle cx="12" cy="12" r="4" fill="currentColor"/>
+            </svg>
+          </div>
+          <span class="tool-btn-label" id="recordLabel">Record</span>
+        </button>
+
+        <button class="tool-btn" id="btnReactions" title="Reactions & Hand Raise">
+          <div class="tool-btn-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <path d="M8 14s1.5 2 4 2 4-2 4-2"/>
+              <line x1="9" x2="9.01" y1="9" y2="9"/>
+              <line x1="15" x2="15.01" y1="9" y2="9"/>
+            </svg>
+          </div>
+          <span class="tool-btn-label">Reactions</span>
+        </button>
+      </div>
+
+      <!-- Right Controls: Leave Meeting -->
+      <div class="toolbar-group">
+        <button class="btn-leave-meeting" id="btnLeaveMeeting">Leave</button>
+      </div>
+    </footer>
+
+    <!-- Meeting Info Modal -->
+    <div class="modal-backdrop" id="infoModal">
+      <div class="modal-dialog">
+        <div class="modal-header">
+          <h2>Meeting Information</h2>
+          <button class="close-btn" id="btnCloseInfoModal">&times;</button>
+        </div>
+
+        <div class="input-group">
+          <label>Meeting ID</label>
+          <div style="display:flex; gap:8px;">
+            <input type="text" id="infoModalRoomId" class="custom-input" readonly>
+            <button class="btn-primary-large" id="btnCopyRoomId" style="width:auto; padding:0 18px;">Copy</button>
+          </div>
+        </div>
+
+        <div class="input-group">
+          <label>Invite Link</label>
+          <div style="display:flex; gap:8px;">
+            <input type="text" id="infoModalInviteLink" class="custom-input" readonly>
+            <button class="btn-primary-large" id="btnCopyInviteLink" style="width:auto; padding:0 18px;">Copy Link</button>
+          </div>
+        </div>
+
+        <div style="padding:12px; background:var(--bg-card); border-radius:var(--radius-md); font-size:0.85rem; color:var(--text-secondary);">
+          🛡️ WebRTC end-to-end encrypted mesh connection. All media streams are transmitted directly between participants.
+        </div>
+      </div>
+    </div>
+
+    <!-- Effects Modal -->
+    <div class="modal-backdrop" id="effectsModal">
+      <div class="modal-dialog">
+        <div class="modal-header">
+          <h2>Video Filters & Effects</h2>
+          <button class="close-btn" id="btnCloseEffectsModal">&times;</button>
+        </div>
+
+        <div style="display:grid; grid-template-columns:repeat(2, 1fr); gap:12px;">
+          <button class="action-card" id="filterNone" style="align-items:center; text-align:center;">
+            <h3>Normal</h3>
+            <p>No video filter</p>
+          </button>
+          <button class="action-card" id="filterBlur" style="align-items:center; text-align:center;">
+            <h3>Soft Blur</h3>
+            <p>Subtle focus filter</p>
+          </button>
+          <button class="action-card" id="filterBw" style="align-items:center; text-align:center;">
+            <h3>Black & White</h3>
+            <p>Monochrome filter</p>
+          </button>
+          <button class="action-card" id="filterSepia" style="align-items:center; text-align:center;">
+            <h3>Warm Sepia</h3>
+            <p>Classic warm tone</p>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Leave Modal -->
+    <div class="modal-backdrop" id="leaveModal">
+      <div class="modal-dialog" style="max-width:400px; text-align:center;">
+        <h2 style="font-size:1.3rem;">Leave Meeting?</h2>
+        <p style="color:var(--text-secondary); font-size:0.95rem;">Are you sure you want to leave this conference?</p>
+        <div style="display:flex; gap:12px; margin-top:10px;">
+          <button id="btnCancelLeave" class="btn-primary-large" style="background:var(--bg-card); color:var(--text-secondary);">Cancel</button>
+          <button id="btnConfirmLeave" class="btn-leave-meeting" style="flex:1; padding:12px;">Leave Meeting</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast container -->
+    <div class="toast-container" id="toastContainer"></div>
+  </div>
+
+  <script src="/js/room.js"></script>
+</body>
+</html>
